@@ -3,6 +3,15 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, EMPTY, map, Observable, ReplaySubject } from 'rxjs';
 import { NewSubscriptionRequest } from '../components/subscription-list/new-subscription-dialog/new-subscription-dialog.component';
 
+// Declare window.APP_CONFIG for runtime configuration
+declare global {
+  interface Window {
+    APP_CONFIG?: {
+      autoAttachPubsubProjects?: string;
+    };
+  }
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -31,11 +40,46 @@ export class PubsubService {
 
     const prevProjects = localStorage.getItem("projects") ?? "[]"
     const projects: string[] = JSON.parse(prevProjects) ?? []
-    this._projectList.next(projects)
+
+    // Auto-attach projects from environment variable (idempotent)
+    const autoAttachProjects = this.getAutoAttachProjects()
+    const mergedProjects = this.mergeProjectsIdempotently(projects, autoAttachProjects)
+
+    this._projectList.next(mergedProjects)
+
+    // Save merged list to localStorage if auto-attach added new projects
+    if (mergedProjects.length !== projects.length) {
+      localStorage.setItem("projects", JSON.stringify(mergedProjects))
+      console.log('auto-attached projects:', autoAttachProjects)
+    }
 
     this.currentProject$.subscribe(project =>
       this.topicList$ = this.listTopics(project)
     )
+  }
+
+  private getAutoAttachProjects(): string[] {
+    const envVar = window.APP_CONFIG?.autoAttachPubsubProjects || ''
+    if (!envVar || envVar.trim() === '' || envVar === '${AUTO_ATTACH_PUBSUB_PROJECTS}') {
+      return []
+    }
+
+    return envVar
+      .split(',')
+      .map(project => project.trim())
+      .filter(project => project.length > 0)
+  }
+
+  private mergeProjectsIdempotently(existing: string[], autoAttach: string[]): string[] {
+    const merged = [...existing]
+
+    for (const project of autoAttach) {
+      if (!merged.includes(project)) {
+        merged.push(project)
+      }
+    }
+
+    return merged
   }
 
   setHost(hostUrl: string) {
@@ -141,7 +185,7 @@ export interface ReceivedMessage {
 }
 
 export interface PubsubMessage {
-  data: string 
+  data: string
   attributes?: { [key: string]: string }
   messageId?: string
   publishTime?: string

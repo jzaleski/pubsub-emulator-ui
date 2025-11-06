@@ -15,6 +15,12 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link href="http://fonts.cdnfonts.com/css/cascadia-code" rel="stylesheet">
 
+  <script>
+    // Runtime configuration injected by Docker entrypoint
+    window.APP_CONFIG = {
+      autoAttachPubsubProjects: '${AUTO_ATTACH_PUBSUB_PROJECTS}'
+    };
+  </script>
 </head>
 <body class="mat-app-background">
   <app-root></app-root>
