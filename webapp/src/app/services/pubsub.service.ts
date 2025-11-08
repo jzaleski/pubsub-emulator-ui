@@ -38,6 +38,10 @@ export class PubsubService {
       defaultHost = "http://localhost:8681"
     }
 
+    if (!defaultHost.match(/^http[s]?:\/\//)) {
+      defaultHost = `http://${defaultHost}`
+    }
+
     const prevHost = localStorage.getItem("host")
     if (prevHost) {
       console.log('loaded previous host', prevHost)
