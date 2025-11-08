@@ -8,6 +8,7 @@ declare global {
   interface Window {
     APP_CONFIG?: {
       autoAttachPubsubProjects?: string;
+      defaultPubsubEmulatorHost?: string;
     };
   }
 }
@@ -18,7 +19,7 @@ declare global {
 export class PubsubService {
   private http = inject(HttpClient);
 
-  public _currentHost$ = new BehaviorSubject<string>("http://localhost:8681")
+  public _currentHost$ = new BehaviorSubject<string>("")
 
   private _projectList = new BehaviorSubject<string[]>([])
   private _currentProject = new ReplaySubject<string>()
@@ -32,10 +33,18 @@ export class PubsubService {
   public currentSubscription$ = this._currentSubscription.asObservable()
 
   constructor() {
+    let defaultHost = window.APP_CONFIG?.defaultPubsubEmulatorHost || ""
+    if (!defaultHost || defaultHost === '${DEFAULT_PUBSUB_EMULATOR_HOST}') {
+      defaultHost = "http://localhost:8681"
+    }
+
     const prevHost = localStorage.getItem("host")
     if (prevHost) {
       console.log('loaded previous host', prevHost)
       this._currentHost$.next(prevHost)
+    } else {
+      console.log('loaded default host', defaultHost)
+      this._currentHost$.next(defaultHost)
     }
 
     const prevProjects = localStorage.getItem("projects") ?? "[]"
@@ -59,12 +68,12 @@ export class PubsubService {
   }
 
   private getAutoAttachProjects(): string[] {
-    const envVar = window.APP_CONFIG?.autoAttachPubsubProjects || ''
-    if (!envVar || envVar.trim() === '' || envVar === '${AUTO_ATTACH_PUBSUB_PROJECTS}') {
+    const autoAttachProjects = window.APP_CONFIG?.autoAttachPubsubProjects || ''
+    if (!autoAttachProjects || autoAttachProjects === "${AUTO_ATTACH_PUBSUB_PROJECTS}") {
       return []
     }
 
-    return envVar
+    return autoAttachProjects
       .split(',')
       .map(project => project.trim())
       .filter(project => project.length > 0)
